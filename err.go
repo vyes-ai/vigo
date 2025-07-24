@@ -59,6 +59,13 @@ func (e *Error) WithString(a string) *Error {
 	}
 }
 
+func (e *Error) WithMessage(msg string) *Error {
+	return &Error{
+		Code:    e.Code,
+		Message: msg,
+	}
+}
+
 func (e *Error) WithError(err error) *Error {
 	return &Error{
 		Code:    e.Code,

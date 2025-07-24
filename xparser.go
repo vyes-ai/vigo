@@ -24,10 +24,25 @@ import (
 var parserErr = NewError("parse arg %s with error: %s").WithCode(http.StatusConflict)
 
 // Parse 从 HTTP 请求中解析参数到目标结构体
+// 从不同来源解析目标结构体一级字段
+// tag标签 parse:"path/header/query/form/json" 可以追加为 path@alias_name
+// tag标签 default:""
+// 字段为指针类型时为可选参数,defalt标签不生效
+// 字段为非指针类型时是必选参数，default标签生效，未设置该值且未发现参数时报参数缺失错误
+// json 字段由json解码控制，没有default机制
+
 func (x *X) Parse(target any) error {
 	rv := reflect.ValueOf(target)
-	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
-		return fmt.Errorf("target must be a pointer to struct")
+	if rv.Kind() != reflect.Ptr {
+		return fmt.Errorf("target must be a pointer to struct: %s", rv.Kind())
+	}
+	if rv.Elem().Kind() != reflect.Struct {
+		err := json.NewDecoder(x.Request.Body).Decode(target)
+		if errors.Is(err, io.EOF) {
+		} else if err != nil {
+			return ErrArgInvalid.WithArgs(err)
+		}
+		return nil
 	}
 
 	// 检查是否需要解析 multipart form（用于文件上传）
@@ -68,7 +83,10 @@ func (x *X) Parse(target any) error {
 
 		parseTag := field.Tag.Get("parse")
 		jsonTag := field.Tag.Get("json")
-		defaultTag := field.Tag.Get("default")
+		var defaultTag *string
+		if tag, ok := field.Tag.Lookup("default"); ok {
+			defaultTag = &tag
+		}
 
 		if parseTag == "" {
 			parseTag = "json" // 默认使用 json 解析
@@ -113,7 +131,12 @@ func (x *X) Parse(target any) error {
 			}
 			// 处理普通表单数据
 			if x.Request.MultipartForm != nil {
-				value, found = x.Request.MultipartForm.Value[fieldName]
+				if fieldValue.Kind() == reflect.Slice && fieldValue.Type().Elem().Kind() == reflect.String {
+					value, found = x.Request.MultipartForm.Value[fieldName]
+				} else if valueList, ok := x.Request.MultipartForm.Value[fieldName]; ok {
+					value = valueList[0]
+					found = true
+				}
 			} else if x.Request.Form != nil {
 				if formValues := x.Request.Form[fieldName]; len(formValues) > 0 {
 					if fieldValue.Kind() == reflect.Slice && fieldValue.Type().Elem().Kind() == reflect.String {
@@ -217,15 +240,17 @@ func setFileValue(fieldValue reflect.Value, req *http.Request, fieldName string)
 }
 
 // setFieldValue 设置字段值
-func setFieldValue(fieldValue reflect.Value, field reflect.StructField, value any, found bool, defaultTag string) error {
+func setFieldValue(fieldValue reflect.Value, field reflect.StructField, value any, found bool, defaultTag *string) error {
 	isPointer := fieldValue.Kind() == reflect.Ptr
-	isRequired := !isPointer && defaultTag == ""
+	isRequired := !isPointer && defaultTag == nil
 
 	// 如果没有找到值
 	if !found || value == nil {
-		if defaultTag != "" {
+		if defaultTag != nil && *defaultTag != "" {
 			// 使用默认值
-			return setValueFromString(fieldValue, defaultTag, isPointer)
+			return setValueFromString(fieldValue, *defaultTag, isPointer)
+		} else if defaultTag != nil {
+			return nil
 		} else if isRequired {
 			return fmt.Errorf("required field missing")
 		}

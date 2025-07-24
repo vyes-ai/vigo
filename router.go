@@ -216,7 +216,7 @@ func (r *route) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if subR, fcs := r.match(req.URL.Path[1:], req.Method, x); subR != nil && len(fcs) > 0 {
 		x.fcs = fcs
 		x.Next()
-		logv.WithNoCaller.Debug().Int("ms", int(time.Since(start).Milliseconds())).Str("method", req.Method).Int("code", x.code).Msg(req.RequestURI)
+		logv.WithNoCaller.Debug().Int("ms", int(time.Since(start).Milliseconds())).Str("method", req.Method).Msg(req.RequestURI)
 	} else {
 		logv.WithNoCaller.Warn().Str("method", req.Method).Str("path", req.URL.Path).Msg("Not Handled")
 	}

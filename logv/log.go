@@ -90,8 +90,8 @@ func init() {
 func SetLogger(l *zerolog.Logger) {
 	originLoger = l
 	if enableCaller {
-		logger = l.With().Timestamp().CallerWithSkipFrameCount(2).Logger()
-		WithDeepCaller = l.With().Timestamp().CallerWithSkipFrameCount(3).Logger()
+		logger = l.With().Timestamp().CallerWithSkipFrameCount(1).Logger()
+		WithDeepCaller = l.With().Timestamp().CallerWithSkipFrameCount(2).Logger()
 	} else {
 		logger = l.With().Timestamp().Logger()
 		WithDeepCaller = l.With().Timestamp().Logger()
@@ -100,7 +100,7 @@ func SetLogger(l *zerolog.Logger) {
 }
 
 func Caller(depth uint) *zerolog.Logger {
-	l := originLoger.With().Timestamp().CallerWithSkipFrameCount(int(depth) + 2).Logger()
+	l := originLoger.With().Timestamp().CallerWithSkipFrameCount(int(depth) + 1).Logger()
 	return &l
 }
 
