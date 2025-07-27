@@ -149,12 +149,25 @@ func (x *X) Header() http.Header {
 }
 
 func (x *X) JSON(data any) error {
-	v, err := json.Marshal(data)
-	if err != nil {
-		return err
+	var err error
+	switch v := data.(type) {
+	case string:
+		_, err = x.writer.Write([]byte(v))
+	case []byte:
+		_, err = x.writer.Write(v)
+	case error:
+		_, err = x.writer.Write([]byte(v.Error()))
+	case nil:
+	case int, uint, int8, uint8, int16, uint16, int32, uint32, int64, uint64, float32, float64, bool:
+		_, err = x.writer.Write((fmt.Appendf([]byte{}, "%v", v)))
+	default:
+		b, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		x.Header().Add("Content-Type", "application/json")
+		_, err = x.Write(b)
 	}
-	x.Header().Add("Content-Type", "application/json")
-	_, err = x.Write(v)
 	return err
 }
 

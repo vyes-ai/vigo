@@ -20,6 +20,7 @@ func AllowAny(x *vigo.X) {
 	x.Header().Set("Access-Control-Allow-Credentials", "true")
 	x.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH, PROPFIND")
 	x.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, depth")
+	x.Header().Set("Access-Control-Expose-Headers", "Vyes-Root, Vyes-Vdev")
 	if x.Request.Method == http.MethodOptions && x.Request.Header.Get("Access-Control-Request-Method") != "" {
 		x.Stop()
 	}

@@ -80,6 +80,10 @@ func (x *X) Parse(target any) error {
 		if !fieldValue.CanSet() {
 			continue
 		}
+		// 内嵌结构体直接跳过
+		if field.Anonymous {
+			continue
+		}
 
 		parseTag := field.Tag.Get("parse")
 		jsonTag := field.Tag.Get("json")

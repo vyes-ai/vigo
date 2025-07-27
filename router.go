@@ -31,6 +31,9 @@ type FuncHttp2Any = func(http.ResponseWriter, *http.Request) any
 type FuncHttp2Err = func(http.ResponseWriter, *http.Request) error
 type FuncHttp2AnyErr = func(http.ResponseWriter, *http.Request) (any, error)
 type FuncErr = func(*X, error) error
+type FuncSkipBefore func()
+
+var SkipBefore FuncSkipBefore
 
 var allowedMethods = []string{
 	http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut,
@@ -103,7 +106,7 @@ func (r *route) tree(root string) []string {
 		return res
 	}
 	res := make([]string, 0, 10)
-	if r.handlers != nil && len(r.handlers) > 0 {
+	if len(r.handlers) > 0 {
 		item := root
 		if item == "" {
 			item = "/"
@@ -214,6 +217,7 @@ func (r *route) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	_ = start
 
 	if subR, fcs := r.match(req.URL.Path[1:], req.Method, x); subR != nil && len(fcs) > 0 {
+
 		x.fcs = fcs
 		x.Next()
 		logv.WithNoCaller.Debug().Int("ms", int(time.Since(start).Milliseconds())).Str("method", req.Method).Msg(req.RequestURI)
@@ -324,12 +328,18 @@ func (r *route) Set(prefix string, method string, handlers ...any) Router {
 	filterHandlers := make([]any, 0, len(handlers))
 	for _, fc := range handlers {
 		switch fc := fc.(type) {
-		case FuncX2None, FuncX2Any, FuncX2Err, FuncX2AnyErr, FuncAny2None, FuncAny2Any, FuncAny2Err, FuncAny2AnyErr, FuncHttp2None, FuncHttp2Any, FuncHttp2Err, FuncHttp2AnyErr, FuncErr:
+		case FuncX2None, FuncX2Any, FuncX2Err, FuncX2AnyErr,
+			FuncAny2None, FuncAny2Any, FuncAny2Err, FuncAny2AnyErr,
+			FuncHttp2None, FuncHttp2Any, FuncHttp2Err, FuncHttp2AnyErr,
+			FuncErr, FuncSkipBefore:
 			filterHandlers = append(filterHandlers, fc)
 		case FuncDescription:
 			desc = fc
 		default:
 			fct := reflect.TypeOf(fc)
+			if fct.Kind() == reflect.Ptr {
+				fct = fct.Elem()
+			}
 			if fct.Kind() == reflect.Struct {
 				for i := 0; i < fct.NumField(); i++ {
 					field := fct.Field(i)
@@ -342,8 +352,8 @@ func (r *route) Set(prefix string, method string, handlers ...any) Router {
 	}
 	tmp.handlersDesc[method] = [2]string{desc, desarg}
 	if tmp.handlers[method] != nil {
-		panic(fmt.Sprintf("handler %s %s already exists", method, prefix))
-		// tmp.handlers[method] = append(tmp.handlers[method], handlers...)
+		logv.Warn().Msgf("handler %s %s already exists", tmp.String(), method)
+		tmp.handlers[method] = filterHandlers
 	} else {
 		tmp.handlers[method] = filterHandlers
 	}
@@ -388,7 +398,10 @@ func (r *route) Delete(url string, handlers ...any) Router {
 func (r *route) UseAfter(middleware ...any) Router {
 	for _, m := range middleware {
 		switch m := m.(type) {
-		case FuncX2None, FuncX2Any, FuncX2Err, FuncX2AnyErr, FuncAny2None, FuncAny2Any, FuncAny2Err, FuncAny2AnyErr, FuncHttp2None, FuncHttp2Any, FuncHttp2Err, FuncHttp2AnyErr, FuncErr:
+		case FuncX2None, FuncX2Any, FuncX2Err, FuncX2AnyErr,
+			FuncAny2None, FuncAny2Any, FuncAny2Err, FuncAny2AnyErr,
+			FuncHttp2None, FuncHttp2Any, FuncHttp2Err, FuncHttp2AnyErr,
+			FuncErr, FuncSkipBefore:
 			r.use(m, false)
 		default:
 			panic(fmt.Sprintf("not support middleware %T", m))
@@ -400,7 +413,10 @@ func (r *route) UseAfter(middleware ...any) Router {
 func (r *route) UseBefore(middleware ...any) Router {
 	for _, m := range middleware {
 		switch m := m.(type) {
-		case FuncX2None, FuncX2Any, FuncX2Err, FuncX2AnyErr, FuncAny2None, FuncAny2Any, FuncAny2Err, FuncAny2AnyErr, FuncHttp2None, FuncHttp2Any, FuncHttp2Err, FuncHttp2AnyErr, FuncErr:
+		case FuncX2None, FuncX2Any, FuncX2Err, FuncX2AnyErr,
+			FuncAny2None, FuncAny2Any, FuncAny2Err, FuncAny2AnyErr,
+			FuncHttp2None, FuncHttp2Any, FuncHttp2Err, FuncHttp2AnyErr,
+			FuncErr, FuncSkipBefore:
 			r.use(m, true)
 		default:
 			panic(fmt.Sprintf("not support middleware %T", m))
@@ -433,6 +449,15 @@ func (r *route) syncCache() {
 	for k := range r.handlers {
 		r.handlersCache[k] = append(append([]any{}, before...), r.handlers[k]...)
 		r.handlersCache[k] = append(r.handlersCache[k], after...)
+		skipIdx := -1
+		for i := range r.handlersCache[k] {
+			if _, ok := r.handlersCache[k][i].(FuncSkipBefore); ok {
+				skipIdx = i
+			}
+		}
+		if skipIdx >= 0 {
+			r.handlersCache[k] = append([]any{}, r.handlersCache[k][skipIdx+1:]...)
+		}
 	}
 
 	for _, sub := range r.subRouters {

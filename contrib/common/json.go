@@ -15,7 +15,8 @@ import (
 )
 
 func JsonResponse(x *vigo.X, data any) error {
-	return x.JSON(map[string]any{"code": 0, "data": data})
+	x.WriteHeader(200)
+	return x.JSON(data)
 }
 
 func JsonErrorResponse(x *vigo.X, err error) error {
@@ -26,13 +27,14 @@ func JsonErrorResponse(x *vigo.X, err error) error {
 			code, _ = strconv.Atoi(strconv.Itoa(code)[:3])
 		}
 		x.WriteHeader(code)
-		x.JSON(map[string]any{"code": e.Code, "message": e.Message})
+		x.Header().Set("error-code", strconv.Itoa(e.Code))
+		x.Write([]byte(e.Message))
 		return nil
 	}
 	if code != 404 {
-		logv.WithDeepCaller.Warn().Msg(err.Error())
+		logv.Warn().Msg(err.Error())
 	}
 	x.WriteHeader(code)
-	x.JSON(map[string]any{"code": code, "message": err.Error()})
+	x.Write([]byte(err.Error()))
 	return nil
 }

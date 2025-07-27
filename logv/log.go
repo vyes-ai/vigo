@@ -79,6 +79,10 @@ var logger zerolog.Logger
 var WithDeepCaller zerolog.Logger
 var WithNoCaller zerolog.Logger
 
+var Print = logger.Print
+var Println = logger.Print
+var Printf = logger.Printf
+
 func init() {
 	// 输出trace信息，err以上级别调用Err或者Errs使触发
 	zerolog.ErrorStackMarshaler = func(err error) interface{} {
@@ -90,13 +94,16 @@ func init() {
 func SetLogger(l *zerolog.Logger) {
 	originLoger = l
 	if enableCaller {
-		logger = l.With().Timestamp().CallerWithSkipFrameCount(1).Logger()
-		WithDeepCaller = l.With().Timestamp().CallerWithSkipFrameCount(2).Logger()
+		logger = l.With().Timestamp().CallerWithSkipFrameCount(2).Logger()
+		WithDeepCaller = l.With().Timestamp().CallerWithSkipFrameCount(3).Logger()
 	} else {
 		logger = l.With().Timestamp().Logger()
 		WithDeepCaller = l.With().Timestamp().Logger()
 	}
 	WithNoCaller = l.With().Timestamp().Logger()
+	// Print = WithNoCaller.Print
+	// Println = WithNoCaller.Println
+	// Printf = WithNoCaller.Printf
 }
 
 func Caller(depth uint) *zerolog.Logger {
@@ -200,10 +207,6 @@ func Panic() *zerolog.Event {
 func Log() *zerolog.Event {
 	return logger.Log()
 }
-
-var Print = WithDeepCaller.Print
-var Println = WithDeepCaller.Print
-var Printf = WithDeepCaller.Printf
 
 func PanicTrace() []byte {
 	buf := make([]byte, 10240)

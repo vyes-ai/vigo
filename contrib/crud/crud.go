@@ -17,16 +17,16 @@ import (
 	"gorm.io/gorm"
 )
 
-func All(r vigo.Router, db *gorm.DB, target any) {
-	r.Get("/:id", Get(db, target))
-	r.Get("", List(db, target))
-	r.Post("", Create(db, target))
-	r.Put("/:id", Update(db, target))
-	r.Delete("/:id", Delete(db, target))
+func All(r vigo.Router, db func() *gorm.DB, target any) {
+	r.Get("/:id", "generated api", target, Get(db, target))
+	r.Get("", "generated api", target, List(db, target))
+	r.Post("", "generated api", target, Create(db, target))
+	r.Patch("/:id", "generated api", target, Update(db, target))
+	r.Delete("/:id", "generated api", target, Delete(db, target))
 }
 
 // Create 创建资源
-func Create(db *gorm.DB, model any) vigo.FuncX2AnyErr {
+func Create(db func() *gorm.DB, model any) vigo.FuncX2AnyErr {
 	modelType := reflect.TypeOf(model)
 	if modelType.Kind() == reflect.Ptr {
 		modelType = modelType.Elem()
@@ -35,12 +35,13 @@ func Create(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 		// 创建模型实例
 		modelValue := reflect.New(modelType).Interface()
 		// 绑定JSON数据
-		if err := x.Parse(&modelValue); err != nil {
+		if err := x.Parse(modelValue); err != nil {
 			return nil, err
 		}
+		logv.Warn().Msgf("%v", modelValue)
 
 		// 保存到数据库
-		if err := db.Create(modelValue).Error; err != nil {
+		if err := db().Create(modelValue).Error; err != nil {
 			return nil, err
 		}
 		return modelValue, nil
@@ -48,7 +49,7 @@ func Create(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 }
 
 // Get 根据ID获取资源
-func Get(db *gorm.DB, model any) vigo.FuncX2AnyErr {
+func Get(db func() *gorm.DB, model any) vigo.FuncX2AnyErr {
 	modelType := reflect.TypeOf(model)
 	if modelType.Kind() == reflect.Ptr {
 		modelType = modelType.Elem()
@@ -61,7 +62,7 @@ func Get(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 
 		modelValue := reflect.New(modelType).Interface()
 
-		if err := db.Debug().First(modelValue, "id = ?", id).Error; err != nil {
+		if err := db().First(modelValue, "id = ?", id).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return nil, vigo.ErrNotFound
 			}
@@ -81,7 +82,7 @@ type PaginatedResponse struct {
 }
 
 // GetAll 获取所有资源（支持分页、过滤和模糊查询）
-func List(db *gorm.DB, model any) vigo.FuncX2AnyErr {
+func List(db func() *gorm.DB, model any) vigo.FuncX2AnyErr {
 	modelType := reflect.TypeOf(model)
 	if modelType.Kind() == reflect.Ptr {
 		modelType = modelType.Elem()
@@ -106,12 +107,21 @@ func List(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 		// 提取分页参数
 		page := 1
 		pageSize := 10
+		sort_by := ""
+		order := "desc"
 
 		if p, ok := params["page"]; ok {
 			if pageStr, ok := p.(string); ok {
 				if pageVal, err := strconv.Atoi(pageStr); err == nil && pageVal > 0 {
 					page = pageVal
+					delete(params, "page")
 				}
+			}
+		}
+		if ps, ok := params["sort_by"]; ok {
+			if psStr, ok := ps.(string); ok {
+				sort_by = psStr
+				delete(params, "sort_by")
 			}
 		}
 
@@ -119,7 +129,16 @@ func List(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 			if pageSizeStr, ok := ps.(string); ok {
 				if pageSizeVal, err := strconv.Atoi(pageSizeStr); err == nil && pageSizeVal > 0 && pageSizeVal <= 100 {
 					pageSize = pageSizeVal
+					delete(params, "page_size")
 				}
+			}
+		}
+		if ps, ok := params["order"]; ok {
+			if psStr, ok := ps.(string); ok {
+				if psStr == "asc" || psStr == "desc" {
+					order = psStr
+				}
+				delete(params, "order")
 			}
 		}
 
@@ -127,67 +146,66 @@ func List(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 		logv.Warn().Msgf("%v", params)
 
 		// 构建查询条件
-		query := db.Model(reflect.New(modelType).Interface())
+		query := db().Model(reflect.New(modelType).Interface())
+		if sort_by != "" {
+			query = query.Order(sort_by + " " + order)
+		}
 
 		// 遍历参数构建查询条件
-		for key, value := range params {
-			// 跳过分页参数
-			if key == "page" || key == "page_size" {
-				continue
+
+		// 检查字段是否为字符串类型，如果是则使用模糊查询
+		modelValue := reflect.New(modelType).Interface()
+		modelType := reflect.TypeOf(modelValue).Elem()
+
+		// 查找对应的字段
+		for i := 0; i < modelType.NumField(); i++ {
+			field := modelType.Field(i)
+			// 检查字段名或json标签
+			fieldName := field.Name
+			if jsonTag := field.Tag.Get("json"); jsonTag != "" && jsonTag != "-" {
+				fieldName = strings.Split(jsonTag, ",")[0]
 			}
-
-			if value == nil || value == "" {
-				continue
-			}
-
-			// 检查字段是否为字符串类型，如果是则使用模糊查询
-			modelValue := reflect.New(modelType).Interface()
-			modelType := reflect.TypeOf(modelValue).Elem()
-
-			// 查找对应的字段
-			for i := 0; i < modelType.NumField(); i++ {
-				field := modelType.Field(i)
-				// 检查字段名或json标签
-				fieldName := field.Name
-				if jsonTag := field.Tag.Get("json"); jsonTag != "" && jsonTag != "-" {
-					fieldName = strings.Split(jsonTag, ",")[0]
+			if jsonTag := field.Tag.Get("parse"); strings.HasPrefix(jsonTag, "path") {
+				if split := strings.Split(jsonTag, "@"); len(split) > 1 {
+					fieldName = split[1]
 				}
-
-				if fieldName == key {
-					valueStr := value.(string)
-
-					fieldType := field.Type
-					if fieldType.Kind() == reflect.Ptr {
-						fieldType = fieldType.Elem()
+				query = query.Where(fieldName+" = ?", x.Params.Get(fieldName))
+				continue
+			}
+			value, ok := params[fieldName]
+			if !ok {
+				continue
+			}
+			valueStr := value.(string)
+			fieldType := field.Type
+			if fieldType.Kind() == reflect.Ptr {
+				fieldType = fieldType.Elem()
+			}
+			// 如果是字符串类型，使用LIKE进行模糊查询
+			if fieldType.Kind() == reflect.String {
+				query = query.Where(fieldName+" LIKE ?", "%"+valueStr+"%")
+			} else {
+				// 其他类型需要转换类型后进行精确匹配
+				switch fieldType.Kind() {
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					if intVal, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
+						query = query.Where(fieldName+" = ?", intVal)
 					}
-					// 如果是字符串类型，使用LIKE进行模糊查询
-					if fieldType.Kind() == reflect.String {
-						query = query.Where(field.Name+" LIKE ?", "%"+valueStr+"%")
-					} else {
-						// 其他类型需要转换类型后进行精确匹配
-						switch fieldType.Kind() {
-						case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-							if intVal, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
-								query = query.Where(field.Name+" = ?", intVal)
-							}
-						case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-							if uintVal, err := strconv.ParseUint(valueStr, 10, 64); err == nil {
-								query = query.Where(field.Name+" = ?", uintVal)
-							}
-						case reflect.Float32, reflect.Float64:
-							if floatVal, err := strconv.ParseFloat(valueStr, 64); err == nil {
-								query = query.Where(field.Name+" = ?", floatVal)
-							}
-						case reflect.Bool:
-							if boolVal, err := strconv.ParseBool(valueStr); err == nil {
-								query = query.Where(field.Name+" = ?", boolVal)
-							}
-						default:
-							// 默认作为字符串处理
-							query = query.Where(field.Name+" = ?", valueStr)
-						}
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+					if uintVal, err := strconv.ParseUint(valueStr, 10, 64); err == nil {
+						query = query.Where(fieldName+" = ?", uintVal)
 					}
-					break
+				case reflect.Float32, reflect.Float64:
+					if floatVal, err := strconv.ParseFloat(valueStr, 64); err == nil {
+						query = query.Where(fieldName+" = ?", floatVal)
+					}
+				case reflect.Bool:
+					if boolVal, err := strconv.ParseBool(valueStr); err == nil {
+						query = query.Where(fieldName+" = ?", boolVal)
+					}
+				default:
+					// 默认作为字符串处理
+					query = query.Where(fieldName+" = ?", valueStr)
 				}
 			}
 		}
@@ -197,7 +215,7 @@ func List(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 		query.Count(&total)
 
 		// 查询数据
-		if err := query.Offset(offset).Limit(pageSize).Find(sliceValue).Error; err != nil {
+		if err := query.Debug().Offset(offset).Limit(pageSize).Find(sliceValue).Error; err != nil {
 			return nil, err
 		}
 
@@ -216,7 +234,7 @@ func List(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 }
 
 // Update 更新资源
-func Update(db *gorm.DB, model any) vigo.FuncX2AnyErr {
+func Update(db func() *gorm.DB, model any) vigo.FuncX2AnyErr {
 	modelType := reflect.TypeOf(model)
 	if modelType.Kind() == reflect.Ptr {
 		modelType = modelType.Elem()
@@ -230,7 +248,7 @@ func Update(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 		// 查询现有记录
 		existingModel := reflect.New(modelType).Interface()
 
-		if err := db.First(existingModel, "id = ?", id).Error; err != nil {
+		if err := db().First(existingModel, "id = ?", id).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return nil, vigo.ErrNotFound
 			}
@@ -244,7 +262,7 @@ func Update(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 		}
 
 		// 更新记录
-		if err := db.Model(existingModel).Updates(updateData).Error; err != nil {
+		if err := db().Model(existingModel).Updates(updateData).Error; err != nil {
 			return nil, err
 		}
 
@@ -253,7 +271,7 @@ func Update(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 }
 
 // Delete 删除资源
-func Delete(db *gorm.DB, model any) vigo.FuncX2AnyErr {
+func Delete(db func() *gorm.DB, model any) vigo.FuncX2AnyErr {
 	modelType := reflect.TypeOf(model)
 	if modelType.Kind() == reflect.Ptr {
 		modelType = modelType.Elem()
@@ -267,7 +285,7 @@ func Delete(db *gorm.DB, model any) vigo.FuncX2AnyErr {
 
 		modelValue := reflect.New(modelType).Interface()
 
-		if err := db.Delete(modelValue, "id = ?", id).Error; err != nil {
+		if err := db().Delete(modelValue, "id = ?", id).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return nil, vigo.ErrNotFound
 			}
