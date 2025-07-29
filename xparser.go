@@ -87,6 +87,13 @@ func (x *X) Parse(target any) error {
 
 		parseTag := field.Tag.Get("parse")
 		jsonTag := field.Tag.Get("json")
+		// 移除 json tag 中的选项（如 omitempty）
+		if idx := strings.Index(jsonTag, ","); idx != -1 {
+			jsonTag = jsonTag[:idx]
+		}
+		if jsonTag == "-" {
+			continue
+		}
 		var defaultTag *string
 		if tag, ok := field.Tag.Lookup("default"); ok {
 			defaultTag = &tag
@@ -107,10 +114,6 @@ func (x *X) Parse(target any) error {
 			if len(parts) > 1 {
 				fieldName = parts[1]
 			}
-		}
-		// 移除 json tag 中的选项（如 omitempty）
-		if idx := strings.Index(fieldName, ","); idx != -1 {
-			fieldName = fieldName[:idx]
 		}
 
 		var value any

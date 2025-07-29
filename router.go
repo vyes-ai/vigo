@@ -38,7 +38,7 @@ var SkipBefore FuncSkipBefore
 var allowedMethods = []string{
 	http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut,
 	http.MethodPatch, http.MethodDelete, http.MethodConnect,
-	http.MethodOptions, http.MethodTrace, "ANY"}
+	http.MethodOptions, http.MethodTrace, "PROPFIND", "ANY"}
 
 func NewRouter() Router {
 	r := &route{

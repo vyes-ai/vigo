@@ -23,6 +23,7 @@ var (
 	ErrNotSupported   = NewError("not supported")
 	ErrNotAuthorized  = NewError("not authorized").WithCode(40101)
 	ErrNotPermitted   = NewError("not permitted").WithCode(40102)
+	ErrForbidden      = NewError("not forbidden").WithCode(http.StatusForbidden)
 	ErrInternalServer = NewError("internal server error").WithCode(500)
 )
 

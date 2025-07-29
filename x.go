@@ -63,31 +63,35 @@ func (x *X) Next(args ...any) {
 	fc := x.fcs[x.fid]
 	x.fid++
 	var arg any
+	if len(args) > 0 {
+		arg = args[0]
+	}
+	var response any
 	switch fc := fc.(type) {
 	case FuncX2None:
 		fc(x)
 	case FuncX2Any:
-		arg = fc(x)
+		response = fc(x)
 	case FuncX2Err:
 		err = fc(x)
 	case FuncX2AnyErr:
-		arg, err = fc(x)
+		response, err = fc(x)
 	case FuncAny2None:
-		fc(x, args[0])
+		fc(x, arg)
 	case FuncAny2Any:
-		arg = fc(x, args[0])
+		response = fc(x, arg)
 	case FuncAny2Err:
-		err = fc(x, args[0])
+		err = fc(x, arg)
 	case FuncAny2AnyErr:
-		arg, err = fc(x, args[0])
+		response, err = fc(x, arg)
 	case FuncHttp2None:
 		fc(x.ResponseWriter(), x.Request)
 	case FuncHttp2Any:
-		arg = fc(x.ResponseWriter(), x.Request)
+		response = fc(x.ResponseWriter(), x.Request)
 	case FuncHttp2Err:
 		err = fc(x.ResponseWriter(), x.Request)
 	case FuncHttp2AnyErr:
-		arg, err = fc(x.ResponseWriter(), x.Request)
+		response, err = fc(x.ResponseWriter(), x.Request)
 	case FuncErr:
 		// do nothing
 	case FuncDescription:
@@ -98,7 +102,7 @@ func (x *X) Next(args ...any) {
 		x.handleErr(err)
 		return
 	}
-	x.Next(arg)
+	x.Next(response)
 }
 
 func (x *X) handleErr(err error) bool {
@@ -191,7 +195,7 @@ func (x *X) SSEEvent() func(event string, data any) {
 	x.writer.Header().Set("Cache-Control", "no-cache")
 	x.writer.Header().Set("Connection", "keep-alive")
 	return func(event string, data any) {
-		if event != "" {
+		if event != "" && event != "data" {
 			fmt.Fprintf(x.writer, "event: %s\n", event)
 		}
 		if data != nil {

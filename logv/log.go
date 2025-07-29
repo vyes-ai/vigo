@@ -101,9 +101,9 @@ func SetLogger(l *zerolog.Logger) {
 		WithDeepCaller = l.With().Timestamp().Logger()
 	}
 	WithNoCaller = l.With().Timestamp().Logger()
-	// Print = WithNoCaller.Print
-	// Println = WithNoCaller.Println
-	// Printf = WithNoCaller.Printf
+	Print = WithNoCaller.Print
+	Println = WithNoCaller.Println
+	Printf = WithNoCaller.Printf
 }
 
 func Caller(depth uint) *zerolog.Logger {
