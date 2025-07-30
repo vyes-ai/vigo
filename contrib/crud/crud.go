@@ -17,12 +17,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func All(r vigo.Router, db func() *gorm.DB, target any) {
+func All(r vigo.Router, db func() *gorm.DB, target any) vigo.Router {
 	r.Get("/:id", "generated api", target, Get(db, target))
 	r.Get("", "generated api", target, List(db, target))
 	r.Post("", "generated api", target, Create(db, target))
 	r.Patch("/:id", "generated api", target, Update(db, target))
 	r.Delete("/:id", "generated api", target, Delete(db, target))
+	return r
 }
 
 // Create 创建资源

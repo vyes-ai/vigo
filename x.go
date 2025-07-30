@@ -204,11 +204,7 @@ func (x *X) SSEEvent() func(string, any) (int, error) {
 			}
 		}
 		if data != nil {
-			dataStr, err := json.Marshal(data)
-			if err != nil {
-				return n, err
-			}
-			if nn, err := fmt.Fprintf(x.writer, "data: %s\n", dataStr); err != nil {
+			if nn, err := fmt.Fprintf(x.writer, "data: %s\n\n", data); err != nil {
 				return nn + n, err
 			} else {
 				n = n + nn

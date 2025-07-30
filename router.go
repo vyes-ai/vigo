@@ -35,6 +35,10 @@ type FuncSkipBefore func()
 
 var SkipBefore FuncSkipBefore
 
+func DiliverData(x *X, data any) (any, error) {
+	return data, nil
+}
+
 var allowedMethods = []string{
 	http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut,
 	http.MethodPatch, http.MethodDelete, http.MethodConnect,
@@ -222,6 +226,7 @@ func (r *route) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		x.Next()
 		logv.WithNoCaller.Debug().Int("ms", int(time.Since(start).Milliseconds())).Str("method", req.Method).Msg(req.RequestURI)
 	} else {
+		x.WriteHeader(404)
 		logv.WithNoCaller.Warn().Str("method", req.Method).Str("path", req.URL.Path).Msg("Not Handled")
 	}
 }

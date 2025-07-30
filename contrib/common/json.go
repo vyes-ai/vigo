@@ -8,6 +8,7 @@
 package common
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/vyes/vigo"
@@ -27,8 +28,7 @@ func JsonErrorResponse(x *vigo.X, err error) error {
 			code, _ = strconv.Atoi(strconv.Itoa(code)[:3])
 		}
 		x.WriteHeader(code)
-		x.Header().Set("error-code", strconv.Itoa(e.Code))
-		x.Write([]byte(e.Message))
+		x.Write(fmt.Appendf([]byte{}, `{"code":%d,"message":"%s"}`, e.Code, e.Message))
 		return nil
 	}
 	if code != 404 {
