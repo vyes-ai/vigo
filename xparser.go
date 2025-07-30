@@ -32,17 +32,23 @@ var parserErr = NewError("parse arg %s with error: %s").WithCode(http.StatusConf
 // json 字段由json解码控制，没有default机制
 
 func (x *X) Parse(target any) error {
+	parsedJSON := false
+	parseJSON := func() error {
+		parsedJSON = true
+		err := json.NewDecoder(x.Request.Body).Decode(target)
+		if errors.Is(err, io.EOF) {
+			// 空的 JSON body，不是错误
+		} else if err != nil {
+			return ErrArgInvalid.WithArgs(err)
+		}
+		return nil
+	}
 	rv := reflect.ValueOf(target)
 	if rv.Kind() != reflect.Ptr {
 		return fmt.Errorf("target must be a pointer to struct: %s", rv.Kind())
 	}
 	if rv.Elem().Kind() != reflect.Struct {
-		err := json.NewDecoder(x.Request.Body).Decode(target)
-		if errors.Is(err, io.EOF) {
-		} else if err != nil {
-			return ErrArgInvalid.WithArgs(err)
-		}
-		return nil
+		return parseJSON()
 	}
 
 	// 检查是否需要解析 multipart form（用于文件上传）
@@ -58,14 +64,11 @@ func (x *X) Parse(target any) error {
 	}
 
 	// 用于存储 JSON 和 form 数据
-	var jsonData map[string]json.RawMessage
+	// var jsonData map[string]json.RawMessage
 	// 解析 JSON 数据（如果需要）
 	if strings.Contains(contentType, "application/json") {
-		err := json.NewDecoder(x.Request.Body).Decode(&jsonData)
-		if errors.Is(err, io.EOF) {
-			// 空的 JSON body，不是错误
-		} else if err != nil {
-			return ErrArgInvalid.WithArgs(err)
+		if err := parseJSON(); err != nil {
+			return err
 		}
 	}
 
@@ -122,12 +125,19 @@ func (x *X) Parse(target any) error {
 		// 根据 parse tag 获取值
 		switch {
 		case parseTag == "json":
-			if jsonData != nil {
-				if rawMsg, exists := jsonData[fieldName]; exists {
-					value = rawMsg
-					found = true
+			if !parsedJSON {
+				err := parseJSON()
+				if err != nil {
+					return err
 				}
 			}
+			continue
+			// if jsonData != nil {
+			// 	if rawMsg, exists := jsonData[fieldName]; exists {
+			// 		value = rawMsg
+			// 		found = true
+			// 	}
+			// }
 		case parseTag == "form":
 			// 处理文件上传
 			if isFileType(fieldValue.Type()) {

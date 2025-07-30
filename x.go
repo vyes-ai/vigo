@@ -190,25 +190,39 @@ func (x *X) SSEWriter() func(p []byte) (int, error) {
 	}
 	return fc
 }
-func (x *X) SSEEvent() func(event string, data any) {
+
+func (x *X) SSEEvent() func(string, any) (int, error) {
 	x.writer.Header().Set("Content-Type", "text/event-stream")
 	x.writer.Header().Set("Cache-Control", "no-cache")
 	x.writer.Header().Set("Connection", "keep-alive")
-	return func(event string, data any) {
+	return func(event string, data any) (n int, err error) {
 		if event != "" && event != "data" {
-			fmt.Fprintf(x.writer, "event: %s\n", event)
+			if nn, err := fmt.Fprintf(x.writer, "event: %s\n", event); err != nil {
+				return nn, err
+			} else {
+				n = n + nn
+			}
 		}
 		if data != nil {
-			dataStr, ok := data.(string)
-			if !ok {
-				dataStr = fmt.Sprintf("%v", data)
+			dataStr, err := json.Marshal(data)
+			if err != nil {
+				return n, err
 			}
-			fmt.Fprintf(x.writer, "data: %s\n\n", dataStr)
+			if nn, err := fmt.Fprintf(x.writer, "data: %s\n", dataStr); err != nil {
+				return nn + n, err
+			} else {
+				n = n + nn
+			}
 		} else {
-			fmt.Fprint(x.writer, "\n")
+			if nn, err := fmt.Fprint(x.writer, "\n"); err != nil {
+				return nn + n, err
+			} else {
+				n = n + nn
+			}
 		}
 		f := x.writer.(http.Flusher)
 		f.Flush()
+		return n, err
 	}
 }
 
