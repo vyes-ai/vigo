@@ -12,7 +12,6 @@ import (
 	"strconv"
 
 	"github.com/vyes/vigo"
-	"github.com/vyes/vigo/logv"
 )
 
 func JsonResponse(x *vigo.X, data any) error {
@@ -31,10 +30,7 @@ func JsonErrorResponse(x *vigo.X, err error) error {
 		x.Write(fmt.Appendf([]byte{}, `{"code":%d,"message":"%s"}`, e.Code, e.Message))
 		return nil
 	}
-	if code != 404 {
-		logv.Warn().Msg(err.Error())
-	}
 	x.WriteHeader(code)
-	x.Write([]byte(err.Error()))
+	x.Write(fmt.Appendf([]byte{}, `{"code":%d,"message":"%s"}`, code, err.Error()))
 	return nil
 }

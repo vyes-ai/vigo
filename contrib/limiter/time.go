@@ -128,7 +128,6 @@ func (al *AdvancedRequestLimiter) Limit(x *vigo.X, data any) (any, error) {
 	if !al.isAllowed(x.Request) {
 		x.Header().Set("Content-Type", "application/json")
 		x.Header().Set("Retry-After", al.config.MinInterval.String())
-		x.WriteHeader(http.StatusTooManyRequests)
 		return nil, vigo.ErrTooManyRequests.WithMessage("retry after " + al.config.MinInterval.String())
 	}
 	return data, nil

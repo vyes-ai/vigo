@@ -33,7 +33,7 @@ type FuncHttp2AnyErr = func(http.ResponseWriter, *http.Request) (any, error)
 type FuncErr = func(*X, error) error
 type FuncSkipBefore func()
 
-var SkipBefore FuncSkipBefore
+var SkipBefore FuncSkipBefore = func() {}
 
 func DiliverData(x *X, data any) (any, error) {
 	return data, nil
@@ -362,6 +362,12 @@ func (r *route) Set(prefix string, method string, handlers ...any) Router {
 	} else {
 		tmp.handlers[method] = filterHandlers
 	}
+	tmp.handlersCaller[method] = getCaller()
+	tmp.syncCache()
+	return tmp
+}
+
+func getCaller() [3]string {
 	depth := 1
 	for {
 		pc, file, line, ok := runtime.Caller(depth)
@@ -371,13 +377,12 @@ func (r *route) Set(prefix string, method string, handlers ...any) Router {
 		}
 		funcName := runtime.FuncForPC(pc).Name()
 		if !strings.HasPrefix(funcName, "github.com/vyes/vigo") {
-			tmp.handlersCaller[method] = [3]string{file, fmt.Sprintf("%d", line), funcName}
-			break
+			return [3]string{file, fmt.Sprintf("%d", line), funcName}
 		}
 	}
-	tmp.syncCache()
-	return tmp
+	return [3]string{"", "", ""}
 }
+
 func (r *route) Any(url string, handlers ...any) Router {
 	return r.Set(url, "ANY", handlers...)
 }
@@ -401,32 +406,62 @@ func (r *route) Delete(url string, handlers ...any) Router {
 }
 
 func (r *route) UseAfter(middleware ...any) Router {
+	method := ""
 	for _, m := range middleware {
 		switch m := m.(type) {
 		case FuncX2None, FuncX2Any, FuncX2Err, FuncX2AnyErr,
 			FuncAny2None, FuncAny2Any, FuncAny2Err, FuncAny2AnyErr,
 			FuncHttp2None, FuncHttp2Any, FuncHttp2Err, FuncHttp2AnyErr,
 			FuncErr, FuncSkipBefore:
-			r.use(m, false)
+			if method == "" {
+				r.use(m, false)
+			} else {
+				if r.handlers == nil {
+					r.handlers = make(map[string][]any)
+				}
+				r.handlers[method] = append(r.handlers[method], m)
+			}
+		case string:
+			method = strings.ToUpper(m)
+			if !slices.Contains(allowedMethods, method) {
+				logv.WithDeepCaller.Warn().Msgf("invalid method %s", method)
+				method = ""
+			}
 		default:
 			panic(fmt.Sprintf("not support middleware %T", m))
 		}
 	}
+	r.syncCache()
 	return r
 }
 
 func (r *route) UseBefore(middleware ...any) Router {
+	method := ""
 	for _, m := range middleware {
 		switch m := m.(type) {
 		case FuncX2None, FuncX2Any, FuncX2Err, FuncX2AnyErr,
 			FuncAny2None, FuncAny2Any, FuncAny2Err, FuncAny2AnyErr,
 			FuncHttp2None, FuncHttp2Any, FuncHttp2Err, FuncHttp2AnyErr,
 			FuncErr, FuncSkipBefore:
-			r.use(m, true)
+			if method == "" {
+				r.use(m, true)
+			} else {
+				if r.handlers == nil {
+					r.handlers = make(map[string][]any)
+				}
+				r.handlers[method] = append([]any{m}, r.handlers[method]...)
+			}
+		case string:
+			method = strings.ToUpper(m)
+			if !slices.Contains(allowedMethods, method) {
+				logv.WithDeepCaller.Warn().Msgf("invalid method %s", method)
+				method = ""
+			}
 		default:
 			panic(fmt.Sprintf("not support middleware %T", m))
 		}
 	}
+	r.syncCache()
 	return r
 }
 

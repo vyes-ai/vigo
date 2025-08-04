@@ -235,6 +235,21 @@ func RecoverErr() error {
 	return nil
 }
 
+func TraceError(err ...error) {
+	for _, e := range err {
+		if e != nil {
+			WithDeepCaller.Warn().Err(e).Send()
+		}
+	}
+}
+
+func TraceFuncErr[T any](res T, e error) T {
+	if e != nil {
+		WithDeepCaller.Warn().Err(e).Send()
+	}
+	return res
+}
+
 func Assert(guard bool, text string) {
 	if !guard {
 		if enableCaller {

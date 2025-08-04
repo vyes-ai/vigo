@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"reflect"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -46,6 +48,7 @@ func (x *X) Skip(counts ...uint) {
 func (x *X) Next(args ...any) {
 	// args[0] vaild
 	var err error
+	var response any
 	defer func() {
 		if e := recover(); e != nil {
 			if e2, ok := e.(error); ok {
@@ -53,8 +56,13 @@ func (x *X) Next(args ...any) {
 			} else {
 				err = fmt.Errorf("%s: %v", ErrCrash, e)
 			}
+			if ve, ok := err.(*Error); ok {
+				// 有特别明确需求取调用panic(vigo.Error)不打印堆栈
+				logv.WithNoCaller.Warn().Msgf("panic: %s, code: %d", ve.Message, ve.Code)
+			} else {
+				logv.WithNoCaller.Error().Msgf("%s", debug.Stack())
+			}
 			x.handleErr(err)
-			logv.Warn().Msgf("%s", debug.Stack())
 		}
 	}()
 	if x.fid >= len(x.fcs) {
@@ -66,7 +74,6 @@ func (x *X) Next(args ...any) {
 	if len(args) > 0 {
 		arg = args[0]
 	}
-	var response any
 	switch fc := fc.(type) {
 	case FuncX2None:
 		fc(x)
@@ -99,6 +106,7 @@ func (x *X) Next(args ...any) {
 		logv.Warn().Msgf("unknown func type %T", fc)
 	}
 	if err != nil {
+		logv.WithNoCaller.Info().Msgf("%s return error: %v", runtime.FuncForPC(reflect.ValueOf(fc).Pointer()).Name(), err)
 		x.handleErr(err)
 		return
 	}
@@ -116,7 +124,6 @@ func (x *X) handleErr(err error) bool {
 		if ok {
 			err = fc(x, err)
 			if err == nil {
-				// x.Next()
 				return true
 			}
 		}
