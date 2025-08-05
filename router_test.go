@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/vyes/vigo/logv"
+	"github.com/vyes-ai/vigo/logv"
 )
 
 const paramPrefix = "paramPrefix"

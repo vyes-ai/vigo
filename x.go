@@ -20,10 +20,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vyes/vigo/logv"
+	"github.com/vyes-ai/vigo/logv"
 )
 
-const version = "0.5.0"
+const version = "v0.5.0"
 
 type X struct {
 	writer  http.ResponseWriter

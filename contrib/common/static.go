@@ -17,8 +17,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/vyes/vigo"
-	"github.com/vyes/vigo/logv"
+	"github.com/vyes-ai/vigo"
+	"github.com/vyes-ai/vigo/logv"
 )
 
 func Stop(x *vigo.X) {

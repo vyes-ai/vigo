@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vyes/vigo/logv"
+	"github.com/vyes-ai/vigo/logv"
 )
 
 type FuncX2None = func(*X)
@@ -376,7 +376,7 @@ func getCaller() [3]string {
 			break
 		}
 		funcName := runtime.FuncForPC(pc).Name()
-		if !strings.HasPrefix(funcName, "github.com/vyes/vigo") {
+		if !strings.HasPrefix(funcName, "github.com/vyes-ai/vigo") {
 			return [3]string{file, fmt.Sprintf("%d", line), funcName}
 		}
 	}

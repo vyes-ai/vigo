@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vyes/vigo/utils"
+	"github.com/vyes-ai/vigo/utils"
 )
 
 var parserErr = NewError("parse arg %s with error: %s").WithCode(http.StatusConflict)

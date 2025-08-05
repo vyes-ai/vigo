@@ -12,9 +12,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/vyes/vigo"
-	"github.com/vyes/vigo/contrib/common"
-	"github.com/vyes/vigo/utils"
+	"github.com/vyes-ai/vigo"
+	"github.com/vyes-ai/vigo/contrib/common"
+	"github.com/vyes-ai/vigo/utils"
 )
 
 func WrapUI(router vigo.Router, uiFS embed.FS, args ...string) bool {

@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"golang.org/x/net/netutil"
-	"github.com/vyes/vigo/logv"
+	"github.com/vyes-ai/vigo/logv"
 )
 
 func New(opts ...func(*RestConf)) (*Application, error) {

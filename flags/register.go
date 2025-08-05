@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vyes/vigo/logv"
+	"github.com/vyes-ai/vigo/logv"
 )
 
 // isZeroValue 检查值是否为零值

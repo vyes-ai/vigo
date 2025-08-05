@@ -1,4 +1,4 @@
-module github.com/vyes/vigo
+module github.com/vyes-ai/vigo
 
 go 1.24.1
 

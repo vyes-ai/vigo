@@ -11,7 +11,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 
-	"github.com/vyes/vigo"
+	"github.com/vyes-ai/vigo"
 )
 
 func ProxyTo(targetHost string) vigo.FuncX2None {

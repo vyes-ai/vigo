@@ -2,7 +2,7 @@
 package cache
 
 import (
-	"github.com/vyes/vigo"
+	"github.com/vyes-ai/vigo"
 	"sync"
 	"time"
 )

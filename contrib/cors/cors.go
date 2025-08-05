@@ -13,7 +13,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/vyes/vigo"
+	"github.com/vyes-ai/vigo"
 )
 
 // IsCrossOrigin 完整的跨域判断

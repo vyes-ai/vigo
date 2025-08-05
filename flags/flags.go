@@ -13,8 +13,8 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/vyes/vigo/logv"
-	"github.com/vyes/vigo/utils"
+	"github.com/vyes-ai/vigo/logv"
+	"github.com/vyes-ai/vigo/utils"
 	"gopkg.in/yaml.v3"
 )
 

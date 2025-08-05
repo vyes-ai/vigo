@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vyes/vigo"
-	"github.com/vyes/vigo/logv"
+	"github.com/vyes-ai/vigo"
+	"github.com/vyes-ai/vigo/logv"
 	"gorm.io/gorm"
 )
 

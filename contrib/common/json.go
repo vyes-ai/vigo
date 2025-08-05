@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/vyes/vigo"
+	"github.com/vyes-ai/vigo"
 )
 
 func JsonResponse(x *vigo.X, data any) error {

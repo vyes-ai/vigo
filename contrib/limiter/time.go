@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vyes/vigo"
+	"github.com/vyes-ai/vigo"
 )
 
 // LimiterConfig 限流配置
