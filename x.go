@@ -23,6 +23,8 @@ import (
 	"github.com/vyes/vigo/logv"
 )
 
+const version = "0.5.0"
+
 type X struct {
 	writer  http.ResponseWriter
 	Request *http.Request
