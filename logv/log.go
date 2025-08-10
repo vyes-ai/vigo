@@ -140,6 +140,12 @@ func ConsoleLogger() *zerolog.Logger {
 	l := zerolog.New(cl)
 	return &l
 }
+func ConsoleLoggerWithOutColor() *zerolog.Logger {
+	cl := zerolog.NewConsoleWriter()
+	cl.NoColor = true
+	l := zerolog.New(cl)
+	return &l
+}
 
 func HandlerErrs(errs ...error) {
 	for _, e := range errs {
