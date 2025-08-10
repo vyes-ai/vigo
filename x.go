@@ -235,7 +235,7 @@ func (x *X) Context() context.Context {
 	return x.Request.Context()
 }
 
-func (x *X) GetRemoteIp() string {
+func (x *X) GetRemoteIP() string {
 	// 首先尝试从 X-Forwarded-For 获取 IP 地址
 	ip := x.Request.Header.Get("X-Forwarded-For")
 	if ip != "" {
