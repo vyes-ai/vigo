@@ -8,7 +8,6 @@
 package limiter
 
 import (
-	"net/http"
 	"sync"
 	"time"
 
@@ -17,10 +16,10 @@ import (
 
 // LimiterConfig 限流配置
 type LimiterConfig struct {
-	Window      time.Duration              // 时间窗口
-	MaxRequests int                        // 最大请求数
-	MinInterval time.Duration              // 最小请求间隔
-	KeyFunc     func(*http.Request) string // 自定义key生成函数
+	Window      time.Duration        // 时间窗口
+	MaxRequests int                  // 最大请求数
+	MinInterval time.Duration        // 最小请求间隔
+	KeyFunc     func(*vigo.X) string // 自定义key生成函数
 }
 
 // AdvancedRequestLimiter 高级请求限制器
@@ -37,8 +36,15 @@ type ClientRecord struct {
 }
 
 // NewAdvancedRequestLimiter 创建高级请求限制器
-func NewAdvancedRequestLimiter(config LimiterConfig) *AdvancedRequestLimiter {
-	if config.KeyFunc == nil {
+func NewAdvancedRequestLimiter(window time.Duration, MaxRequests int, MinInterval time.Duration, keyFinc ...func(*vigo.X) string) *AdvancedRequestLimiter {
+	config := LimiterConfig{
+		Window:      window,
+		MaxRequests: MaxRequests,
+		MinInterval: MinInterval,
+	}
+	if len(keyFinc) > 0 && keyFinc[0] != nil {
+		config.KeyFunc = keyFinc[0]
+	} else {
 		config.KeyFunc = GetPathKeyFunc
 	}
 
@@ -49,11 +55,11 @@ func NewAdvancedRequestLimiter(config LimiterConfig) *AdvancedRequestLimiter {
 }
 
 // isAllowed 检查是否允许请求
-func (al *AdvancedRequestLimiter) isAllowed(r *http.Request) bool {
+func (al *AdvancedRequestLimiter) isAllowed(x *vigo.X) bool {
 	al.mu.Lock()
 	defer al.mu.Unlock()
 
-	clientKey := al.config.KeyFunc(r)
+	clientKey := al.config.KeyFunc(x)
 	now := time.Now()
 
 	record, exists := al.clients[clientKey]
@@ -125,7 +131,7 @@ func (al *AdvancedRequestLimiter) StartCleaner(interval time.Duration) {
 
 // Limit 限流装饰器
 func (al *AdvancedRequestLimiter) Limit(x *vigo.X, data any) (any, error) {
-	if !al.isAllowed(x.Request) {
+	if !al.isAllowed(x) {
 		x.Header().Set("Content-Type", "application/json")
 		x.Header().Set("Retry-After", al.config.MinInterval.String())
 		return nil, vigo.ErrTooManyRequests.WithMessage("retry after " + al.config.MinInterval.String())
@@ -134,11 +140,11 @@ func (al *AdvancedRequestLimiter) Limit(x *vigo.X, data any) (any, error) {
 }
 
 // GetRateInfo 获取限流信息
-func (al *AdvancedRequestLimiter) GetRateInfo(r *http.Request) map[string]any {
+func (al *AdvancedRequestLimiter) GetRateInfo(x *vigo.X) map[string]any {
 	al.mu.RLock()
 	defer al.mu.RUnlock()
 
-	clientKey := al.config.KeyFunc(r)
+	clientKey := al.config.KeyFunc(x)
 	record, exists := al.clients[clientKey]
 
 	if !exists {
