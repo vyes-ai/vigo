@@ -8,12 +8,11 @@
 package cors
 
 import (
+	"github.com/vyes-ai/vigo"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
-
-	"github.com/vyes-ai/vigo"
 )
 
 // IsCrossOrigin 完整的跨域判断

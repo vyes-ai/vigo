@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"strings"
 
-	"golang.org/x/net/netutil"
 	"github.com/vyes-ai/vigo/logv"
+	"golang.org/x/net/netutil"
 )
 
 func New(opts ...func(*RestConf)) (*Application, error) {
@@ -135,9 +135,16 @@ func (app *Application) netListener() (net.Listener, error) {
 	return app.listener, nil
 }
 
+// TODO: 待完善
 func (app *Application) EnableAI() {
 	r := app.Router().(*route)
-	r.Get("/api.json", "get api list", func(x *X) {
+	r.Any("/api.json", "get api list", func(x *X) {
+		origin := x.Request.Header.Get("Origin")
+		x.Header().Set("Access-Control-Allow-Origin", origin)
+		x.Header().Set("Access-Control-Allow-Credentials", "true")
+		x.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH, PROPFIND")
+		x.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, depth")
+		x.Header().Set("Access-Control-Expose-Headers", "Vyes-Root, Vyes-Vdev")
 		resp := r.getSchema()
 		err := x.JSON(resp)
 		if err != nil {
@@ -145,5 +152,4 @@ func (app *Application) EnableAI() {
 		}
 		x.Stop()
 	})
-	// TODO:
 }

@@ -17,10 +17,9 @@ import (
 	"github.com/vyes-ai/vigo/utils"
 )
 
-func WrapUI(router vigo.Router, uiFS embed.FS, args ...string) bool {
+func WrapUI(router vigo.Router, uiFS embed.FS, args ...string) vigo.Router {
 	current := utils.CurrentDir(1)
 	vdev := os.Getenv("vdev")
-	res := false
 	renderEnv := func(x *vigo.X) {
 		x.Header().Set("vyes-root", router.String())
 		x.Header().Set("vyes-vdev", vdev)
@@ -29,10 +28,9 @@ func WrapUI(router vigo.Router, uiFS embed.FS, args ...string) bool {
 		}
 	}
 	if vdev != "" && current != "" {
-		res = true
 		router.Get("/*path", renderEnv, common.Static(path.Join(current, "ui"), "root.html"))
 	} else {
 		router.Get("/*path", renderEnv, common.EmbedDir(uiFS, "ui", "root.html"))
 	}
-	return res
+	return router
 }

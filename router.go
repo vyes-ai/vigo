@@ -16,29 +16,6 @@ import (
 	"github.com/vyes-ai/vigo/logv"
 )
 
-type FuncX2None = func(*X)
-type FuncX2Any = func(*X) any
-type FuncX2Err = func(*X) error
-type FuncX2AnyErr = func(*X) (any, error)
-type FuncAny2None = func(*X, any)
-type FuncAny2Any = func(*X, any) any
-type FuncAny2Err = func(*X, any) error
-type FuncAny2AnyErr = func(*X, any) (any, error)
-type FuncDescription = string
-
-type FuncHttp2None = func(http.ResponseWriter, *http.Request)
-type FuncHttp2Any = func(http.ResponseWriter, *http.Request) any
-type FuncHttp2Err = func(http.ResponseWriter, *http.Request) error
-type FuncHttp2AnyErr = func(http.ResponseWriter, *http.Request) (any, error)
-type FuncErr = func(*X, error) error
-type FuncSkipBefore func()
-
-var SkipBefore FuncSkipBefore = func() {}
-
-func DiliverData(x *X, data any) (any, error) {
-	return data, nil
-}
-
 var allowedMethods = []string{
 	http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut,
 	http.MethodPatch, http.MethodDelete, http.MethodConnect,
