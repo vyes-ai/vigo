@@ -217,10 +217,7 @@ func (f *FileValue) Set(filePath string) error {
 
 // AutoRegister 自动注册命令行参数，支持嵌套结构体
 func (fs *Flags) AutoRegister(config any) {
-	err := godotenv.Load()
-	if err != nil {
-		logv.Warn().Msgf("Error loading .env file: %v", err)
-	}
+	godotenv.Load()
 	fs.autoRegisterWithPrefix(config, "", "")
 }
 
