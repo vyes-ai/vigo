@@ -7,9 +7,14 @@
 
 package dbmodels
 
-import "gorm.io/gorm"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
 
-
+	"gorm.io/gorm"
+)
 
 type ModelList struct {
 	list []any
@@ -41,9 +46,21 @@ func (ms *ModelList) AutoMigrate(db *gorm.DB) error {
 }
 
 func (ms *ModelList) AutoDrop(db *gorm.DB) error {
-	items := make([]any, 0, 10)
-	for _, obj := range ms.list {
-		items = append(items, obj)
+	fmt.Print("\ncontinue to drop db？(yes/no): ")
+	// 读取用户输入
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return err
 	}
-	return db.Migrator().DropTable(items...)
+	input = strings.TrimSpace(strings.ToLower(input))
+
+	if input == "yes" || input == "y" {
+		items := make([]any, 0, 10)
+		for _, obj := range ms.list {
+			items = append(items, obj)
+		}
+		return db.Migrator().DropTable(items...)
+	}
+	return nil
 }
