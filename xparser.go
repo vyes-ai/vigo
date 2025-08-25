@@ -26,10 +26,7 @@ var parserErr = NewError("parse arg %s with error: %s").WithCode(http.StatusConf
 // Parse 从 HTTP 请求中解析参数到目标结构体
 // 从不同来源解析目标结构体一级字段
 // tag标签 parse:"path/header/query/form/json" 可以追加为 path@alias_name
-// tag标签 default:""
-// 字段为指针类型时为可选参数,defalt标签不生效
-// 字段为非指针类型时是必选参数，default标签生效，未设置该值且未发现参数时报参数缺失错误
-// json 字段由json解码控制，没有default机制
+// tag标签 default:"" 对指针类和json类字段无效
 
 func (x *X) Parse(target any) error {
 	parsedJSON := false
@@ -63,9 +60,7 @@ func (x *X) Parse(target any) error {
 		}
 	}
 
-	// 用于存储 JSON 和 form 数据
-	// var jsonData map[string]json.RawMessage
-	// 解析 JSON 数据（如果需要）
+	// 解析 JSON 数据
 	if strings.Contains(contentType, "application/json") {
 		if err := parseJSON(); err != nil {
 			return err
@@ -132,12 +127,6 @@ func (x *X) Parse(target any) error {
 				}
 			}
 			continue
-			// if jsonData != nil {
-			// 	if rawMsg, exists := jsonData[fieldName]; exists {
-			// 		value = rawMsg
-			// 		found = true
-			// 	}
-			// }
 		case parseTag == "form":
 			// 处理文件上传
 			if isFileType(fieldValue.Type()) {
@@ -259,7 +248,6 @@ func setFileValue(fieldValue reflect.Value, req *http.Request, fieldName string)
 // setFieldValue 设置字段值
 func setFieldValue(fieldValue reflect.Value, field reflect.StructField, value any, found bool, defaultTag *string) error {
 	isPointer := fieldValue.Kind() == reflect.Ptr
-	isRequired := !isPointer && defaultTag == nil
 
 	// 如果没有找到值
 	if !found || value == nil {
@@ -268,8 +256,6 @@ func setFieldValue(fieldValue reflect.Value, field reflect.StructField, value an
 			return setValueFromString(fieldValue, *defaultTag, isPointer)
 		} else if defaultTag != nil {
 			return nil
-		} else if isRequired {
-			return fmt.Errorf("required field missing")
 		}
 		return nil
 	}
